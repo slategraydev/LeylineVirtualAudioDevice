@@ -1,6 +1,6 @@
 # Leyline Audio Driver (C++)
 
-A high-performance virtual audio driver for Windows, re-implemented in C++ from the original Rust codebase.
+A high-performance virtual audio driver for Windows, re-implemented in C++ from the original Rust codebase. Work in progress.
 
 ## Project Layout
 
@@ -93,3 +93,4 @@ cd test\EndpointTester && dotnet run
 - **Pool tags**: Every `new` call uses a four-byte pool tag (e.g., `'LLWS'`) for leak tracking.
 - **Descriptor tables**: Statically initialized in `.rdata`, same as the Rust `#[link_section]` approach.
 - **No CRT**: Builds against `wdm.lib` only; `RtlCopyMemory` replaces `memcpy`.
+
