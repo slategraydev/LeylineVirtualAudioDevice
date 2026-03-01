@@ -93,13 +93,18 @@
     <ClCompile Include="src\adapter.cpp" />
     <ClCompile Include="src\wavert.cpp" />
     <ClCompile Include="src\topology.cpp" />
-    <ClCompile Include="src\descriptors.cpp" />
+    <ClCompile Include="src\descriptors\common.cpp" />
+    <ClCompile Include="src\descriptors\handlers.cpp" />
+    <ClCompile Include="src\descriptors\automation.cpp" />
+    <ClCompile Include="src\descriptors\tables.cpp" />
+    <ClCompile Include="src\descriptors\filters.cpp" />
     <ClCompile Include="src\stdunk.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\leyline_common.h" />
     <ClInclude Include="include\leyline_guids.h" />
     <ClInclude Include="include\leyline_descriptors.h" />
+    <ClInclude Include="src\descriptors\descriptors_internal.h" />
     <ClInclude Include="include\leyline_miniport.h" />
   </ItemGroup>
   <ItemGroup>

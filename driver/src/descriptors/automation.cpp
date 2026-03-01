@@ -1,0 +1,78 @@
+// Copyright (c) 2026 Randall Rosas (Slategray).
+// All rights reserved.
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// AUTOMATION TABLES
+// Defines property sets for filters, pins, and nodes.
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#include "descriptors_internal.h"
+
+static const PCPROPERTY_ITEM g_GeneralProperties[] =
+{
+    { &KSPROPSETID_General,   KSPROPERTY_GENERAL_COMPONENTID,
+      KSPROPERTY_TYPE_GET | KSPROPERTY_TYPE_BASICSUPPORT, ComponentIdHandler }
+};
+
+static const PCPROPERTY_ITEM g_WaveFilterProperties[] =
+{
+    { &KSPROPSETID_General, KSPROPERTY_GENERAL_COMPONENTID,
+      KSPROPERTY_TYPE_GET | KSPROPERTY_TYPE_BASICSUPPORT, ComponentIdHandler },
+    { &KSPROPSETID_Pin,     KSPROPERTY_PIN_PROPOSEDATAFORMAT,
+      KSPROPERTY_TYPE_GET | KSPROPERTY_TYPE_SET | KSPROPERTY_TYPE_BASICSUPPORT, ProposedFormatHandler },
+    { &KSPROPSETID_Pin,     KSPROPERTY_PIN_PROPOSEDATAFORMAT2,
+      KSPROPERTY_TYPE_GET | KSPROPERTY_TYPE_SET | KSPROPERTY_TYPE_BASICSUPPORT, ProposedFormatHandler },
+    { &KSPROPSETID_Jack,    KSPROPERTY_JACK_DESCRIPTION,
+      KSPROPERTY_TYPE_GET | KSPROPERTY_TYPE_BASICSUPPORT, JackDescriptionHandler },
+    { &KSPROPSETID_Jack,    KSPROPERTY_JACK_DESCRIPTION2,
+      KSPROPERTY_TYPE_GET | KSPROPERTY_TYPE_BASICSUPPORT, JackDescriptionHandler },
+    { &KSPROPSETID_AudioEffectsDiscovery, 1 /* KSPROPERTY_AUDIOEFFECTSDISCOVERY_EFFECTSLIST */,
+      KSPROPERTY_TYPE_GET | KSPROPERTY_TYPE_BASICSUPPORT, AudioEffectsDiscoveryHandler },
+    { &KSPROPSETID_AudioModule, KSPROPERTY_AUDIOMODULE_DESCRIPTORS,
+      KSPROPERTY_TYPE_GET | KSPROPERTY_TYPE_BASICSUPPORT, AudioModuleHandler },
+    { &KSPROPSETID_AudioModule, KSPROPERTY_AUDIOMODULE_COMMAND,
+      KSPROPERTY_TYPE_GET | KSPROPERTY_TYPE_SET | KSPROPERTY_TYPE_BASICSUPPORT, AudioModuleHandler },
+    { &KSPROPSETID_AudioModule, KSPROPERTY_AUDIOMODULE_NOTIFICATION_DEVICE_ID,
+      KSPROPERTY_TYPE_GET | KSPROPERTY_TYPE_BASICSUPPORT, AudioModuleHandler },
+};
+
+static const PCPROPERTY_ITEM g_TopoFilterProperties[] =
+{
+    { &KSPROPSETID_General, KSPROPERTY_GENERAL_COMPONENTID,
+      KSPROPERTY_TYPE_GET | KSPROPERTY_TYPE_BASICSUPPORT, ComponentIdHandler },
+    { &KSPROPSETID_Jack,    KSPROPERTY_JACK_DESCRIPTION,
+      KSPROPERTY_TYPE_GET | KSPROPERTY_TYPE_BASICSUPPORT, JackDescriptionHandler },
+    { &KSPROPSETID_Jack,    KSPROPERTY_JACK_DESCRIPTION2,
+      KSPROPERTY_TYPE_GET | KSPROPERTY_TYPE_BASICSUPPORT, JackDescriptionHandler },
+};
+
+static const PCPROPERTY_ITEM g_PinProperties[] =
+{
+    { &KSPROPSETID_Pin,  KSPROPERTY_PIN_CATEGORY,
+      KSPROPERTY_TYPE_GET | KSPROPERTY_TYPE_BASICSUPPORT, PinCategoryHandler },
+    { &KSPROPSETID_Pin,  KSPROPERTY_PIN_NAME,
+      KSPROPERTY_TYPE_GET | KSPROPERTY_TYPE_BASICSUPPORT, PinNameHandler },
+    { &KSPROPSETID_Jack, KSPROPERTY_JACK_DESCRIPTION,
+      KSPROPERTY_TYPE_GET | KSPROPERTY_TYPE_BASICSUPPORT, JackDescriptionHandler },
+    { &KSPROPSETID_Jack, KSPROPERTY_JACK_DESCRIPTION2,
+      KSPROPERTY_TYPE_GET | KSPROPERTY_TYPE_BASICSUPPORT, JackDescriptionHandler },
+};
+
+static const PCPROPERTY_ITEM g_VolumeProperties[] =
+{
+    { &KSPROPSETID_Audio, KSPROPERTY_AUDIO_VOLUMELEVEL,
+      KSPROPERTY_TYPE_GET | KSPROPERTY_TYPE_SET | KSPROPERTY_TYPE_BASICSUPPORT, VolumeHandler }
+};
+
+static const PCPROPERTY_ITEM g_MuteProperties[] =
+{
+    { &KSPROPSETID_Audio, KSPROPERTY_AUDIO_MUTE,
+      KSPROPERTY_TYPE_GET | KSPROPERTY_TYPE_SET | KSPROPERTY_TYPE_BASICSUPPORT, MuteHandler }
+};
+
+DEFINE_PCAUTOMATION_TABLE_PROP(g_ComponentAutomationTable,  g_GeneralProperties);
+DEFINE_PCAUTOMATION_TABLE_PROP(g_WaveFilterAutomationTable,  g_WaveFilterProperties);
+DEFINE_PCAUTOMATION_TABLE_PROP(g_TopoFilterAutomationTable,  g_TopoFilterProperties);
+DEFINE_PCAUTOMATION_TABLE_PROP(g_PinAutomationTable,         g_PinProperties);
+DEFINE_PCAUTOMATION_TABLE_PROP(g_VolumeAutomationTable,      g_VolumeProperties);
+DEFINE_PCAUTOMATION_TABLE_PROP(g_MuteAutomationTable,        g_MuteProperties);

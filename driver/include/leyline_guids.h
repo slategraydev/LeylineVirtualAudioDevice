@@ -1,4 +1,5 @@
-// Copyright (c) 2026 Randall Rosas (Slategray). All rights reserved.
+// Copyright (c) 2026 Randall Rosas (Slategray).
+// All rights reserved.
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // LEYLINE GUIDS & CONSTANTS

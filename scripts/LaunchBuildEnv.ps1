@@ -1,5 +1,11 @@
-# Leyline Audio C++: BUILD ENVIRONMENT SETUP
-# Mirrors LaunchBuildEnv.ps1 from the Rust project.
+# Copyright (c) 2026 Randall Rosas (Slategray).
+# All rights reserved.
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# BUILD ENVIRONMENT SETUP
+# Locates eWDK/SDK and sets up standard environment variables for NMAKE/MSBuild.
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 $ErrorActionPreference = "Stop"
 
 $ewdkRoot = $env:LEYLINE_EWDK_ROOT

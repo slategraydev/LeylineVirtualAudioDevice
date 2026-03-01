@@ -1,20 +1,27 @@
-// Copyright (c) 2026 Randall Rosas (Slategray). All rights reserved.
+// Copyright (c) 2026 Randall Rosas (Slategray).
+// All rights reserved.
 
 #include "leyline_miniport.h"
 
-// Implementation of the standard CUnknown base class.
-// PortCls expects this to be present in the driver.
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Implementation of the standard `CUnknown` base class. 
+// PortCls requires this for COM-like interface handling.
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 CUnknown::CUnknown(PUNKNOWN pUnknownOuter)
-    : m_lRefCount(1) // Start with 1 reference.
+    : m_lRefCount(1)
 {
-    // If we are aggregated, use the outer unknown. Otherwise, we are our own outer unknown.
+    // Use the outer unknown if aggregated. Otherwise, we are our own outer unknown.
     m_pUnknownOuter = pUnknownOuter ? pUnknownOuter : reinterpret_cast<PUNKNOWN>(static_cast<INonDelegatingUnknown*>(this));
 }
 
 CUnknown::~CUnknown()
 {
 }
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// COM Reference Management
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 STDMETHODIMP_(ULONG) CUnknown::NonDelegatingAddRef()
 {
@@ -30,6 +37,10 @@ STDMETHODIMP_(ULONG) CUnknown::NonDelegatingRelease()
     }
     return lRefCount;
 }
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Interface Discovery
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 STDMETHODIMP_(NTSTATUS) CUnknown::NonDelegatingQueryInterface(REFIID riid, PVOID* ppvObject)
 {

@@ -1,6 +1,10 @@
-# Leyline Audio C++: Simplified & Robust Installer
+# Copyright (c) 2026 Randall Rosas (Slategray).
+# All rights reserved.
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# SIMPLIFIED & ROBUST INSTALLER
 # Logic: Build (Host) -> Deploy & Verify (VM)
-# Mirrors Install.ps1 from the Rust project, adapted for C++ / NMAKE builds.
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 param (
     [switch]$clean,        # Full clean build on HOST

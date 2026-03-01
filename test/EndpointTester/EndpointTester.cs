@@ -1,4 +1,13 @@
+// Copyright (c) 2026 Randall Rosas (Slategray).
+// All rights reserved.
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ENDPOINT ENUMERATION TESTER
+// Validates that the driver endpoints are visible to the Windows Audio Engine.
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 using System;
+using System.Linq;
 using NAudio.CoreAudioApi;
 
 namespace EndpointTester
