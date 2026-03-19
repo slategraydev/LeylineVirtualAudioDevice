@@ -157,7 +157,43 @@ NTSTATUS VolumeHandler(PPCPROPERTY_REQUEST PropertyRequest)
     if (PropertyRequest->Verb & KSPROPERTY_TYPE_GET)
     {
         auto *val = reinterpret_cast<LONG*>(PropertyRequest->Value);
-        if (val) *val = 0;  // 0 dB default
+        if (val)
+        {
+            LONG vol = 0;
+            if (g_FunctionalDeviceObject)
+            {
+                DeviceExtension* devExt = GetDeviceExtension(g_FunctionalDeviceObject);
+                vol = devExt->VolumeLevel;
+            }
+            *val = vol;
+        }
+    }
+    else if (PropertyRequest->Verb & KSPROPERTY_TYPE_SET)
+    {
+        auto *val = reinterpret_cast<LONG*>(PropertyRequest->Value);
+        if (val && g_FunctionalDeviceObject)
+        {
+            DeviceExtension* devExt = GetDeviceExtension(g_FunctionalDeviceObject);
+            devExt->VolumeLevel = *val;
+
+            // Precompute 16.16 fixed-point linear gain.
+            // Each -6 dB (approx -393216 in 1/65536 units) halves the gain.
+            LONG dBFixed = *val;  // Negative or zero.
+            if (dBFixed >= 0)
+            {
+                devExt->GainLinear16 = 0x10000;
+            }
+            else
+            {
+                // Integer approximation: shift right by 1 for each 6 dB of attenuation.
+                LONG absDelta = -dBFixed;  // Positive magnitude.
+                LONG sixDbSteps = absDelta / (6 * 0x10000);
+                if (sixDbSteps >= 16)
+                    devExt->GainLinear16 = 0;
+                else
+                    devExt->GainLinear16 = 0x10000 >> sixDbSteps;
+            }
+        }
     }
     return STATUS_SUCCESS;
 }
@@ -177,7 +213,25 @@ NTSTATUS MuteHandler(PPCPROPERTY_REQUEST PropertyRequest)
     if (PropertyRequest->Verb & KSPROPERTY_TYPE_GET)
     {
         auto *val = reinterpret_cast<LONG*>(PropertyRequest->Value);
-        if (val) *val = 0;  // Unmuted by default.
+        if (val)
+        {
+            LONG mute = 0;
+            if (g_FunctionalDeviceObject)
+            {
+                DeviceExtension* devExt = GetDeviceExtension(g_FunctionalDeviceObject);
+                mute = devExt->MuteState;
+            }
+            *val = mute;
+        }
+    }
+    else if (PropertyRequest->Verb & KSPROPERTY_TYPE_SET)
+    {
+        auto *val = reinterpret_cast<LONG*>(PropertyRequest->Value);
+        if (val && g_FunctionalDeviceObject)
+        {
+            DeviceExtension* devExt = GetDeviceExtension(g_FunctionalDeviceObject);
+            devExt->MuteState = *val;
+        }
     }
     return STATUS_SUCCESS;
 }

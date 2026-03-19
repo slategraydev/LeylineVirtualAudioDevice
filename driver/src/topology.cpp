@@ -12,11 +12,12 @@
 // CMiniportTopology
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-CMiniportTopology::CMiniportTopology(PUNKNOWN OuterUnknown, BOOLEAN IsCapture)
+CMiniportTopology::CMiniportTopology(PUNKNOWN OuterUnknown, BOOLEAN IsCapture, DeviceExtension* DevExt)
     : CUnknown(OuterUnknown)
     , m_IsCapture(IsCapture)
     , m_IsInitialized(FALSE)
     , m_Port(nullptr)
+    , m_DevExt(DevExt)
 {}
 
 CMiniportTopology::~CMiniportTopology() {}

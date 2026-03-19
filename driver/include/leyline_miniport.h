@@ -18,6 +18,7 @@
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 class CMiniportWaveRT;
+class CMiniportWaveRTStream;
 class CMiniportTopology;
 
 struct DeviceExtension
@@ -34,6 +35,20 @@ struct DeviceExtension
     CMiniportWaveRT* CaptureMiniport;
     CMiniportTopology* RenderTopoMiniport;
     CMiniportTopology* CaptureTopoMiniport;
+
+    // Loopback engine
+    KSPIN_LOCK          StreamLock;
+    CMiniportWaveRTStream* ActiveRenderStream;
+    CMiniportWaveRTStream* ActiveCaptureStream;
+    KTIMER              LoopbackTimer;
+    KDPC                LoopbackDpc;
+    BOOLEAN             TimerRunning;
+    ULONGLONG           LastCopiedByte;
+
+    // Volume / Mute (shared between property handlers and DPC)
+    LONG                VolumeLevel;      // 1/65536 dB, range [-96*0x10000, 0]
+    LONG                MuteState;        // 0 = unmuted, nonzero = muted
+    ULONG               GainLinear16;     // Precomputed 16.16 fixed-point linear gain
 };
 
 // The PortCls reference driver reserves this many pointer-sized slots
@@ -46,6 +61,7 @@ static const SIZE_T LEYLINE_PORT_CLASS_DEVICE_EXTENSION_SIZE = 64 * sizeof(PVOID
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 class CMiniportWaveRTStream : public IMiniportWaveRTStream,
+                              public IMiniportWaveRTStreamNotification,
                               public CUnknown
 {
 public:
@@ -66,8 +82,32 @@ public:
     STDMETHODIMP GetPositionRegister(KSRTAUDIO_HWREGISTER* Register) override;
     STDMETHODIMP GetClockRegister(KSRTAUDIO_HWREGISTER* Register) override;
 
+    // IMiniportWaveRTStreamNotification
+    STDMETHODIMP AllocateBufferWithNotification(ULONG NotificationCount,
+                                                ULONG RequestedSize, PMDL* AudioBufferMdl,
+                                                ULONG* ActualSize, ULONG* OffsetFromFirstPage,
+                                                MEMORY_CACHING_TYPE* CacheType) override;
+    STDMETHODIMP_(void) FreeBufferWithNotification(PMDL AudioBufferMdl, ULONG BufferSize) override;
+    STDMETHODIMP RegisterNotificationEvent(PKEVENT NotificationEvent) override;
+    STDMETHODIMP UnregisterNotificationEvent(PKEVENT NotificationEvent) override;
+
     // Initialization helper.
     NTSTATUS Init(ULONG PinId, BOOLEAN Capture, PKSDATAFORMAT Format);
+
+    // Event signaling helper
+    void CheckAndSignalEvents(ULONGLONG lastPosBytes, ULONGLONG currentPosBytes);
+
+    // Public accessors for the loopback engine.
+    PUCHAR   GetBufferBase()     const { return m_Buffer.GetBaseAddress(); }
+    SIZE_T   GetBufferSize()     const { return m_Buffer.GetSize(); }
+    BOOLEAN  IsStreamCapture()   const { return m_IsCapture; }
+    KSSTATE  GetStreamState()    const { return m_State; }
+    ULONG    GetStreamByteRate() const { return m_ByteRate; }
+    LONGLONG GetStartTime()      const { return m_StartTime; }
+    LONGLONG GetFrequency()      const { return m_Frequency; }
+    ULONG    GetBitsPerSample()  const { return m_BitsPerSample; }
+    ULONG    GetChannels()       const { return m_Channels; }
+    BOOLEAN  IsFloat()           const { return m_IsFloat; }
 
 private:
     RingBuffer         m_Buffer;
@@ -80,6 +120,13 @@ private:
     ULONG              m_ByteRate;
     LONGLONG           m_Frequency;
     DeviceExtension*   m_DevExt;
+    ULONG              m_BitsPerSample;
+    ULONG              m_Channels;
+    BOOLEAN            m_IsFloat;
+
+    // Notification events
+    PKEVENT            m_NotificationEvents[8];
+    ULONG              m_NotificationBytes;
 };
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -127,8 +174,9 @@ class CMiniportTopology : public IMiniportTopology,
 public:
     DECLARE_STD_UNKNOWN();
 
-    CMiniportTopology(PUNKNOWN OuterUnknown, BOOLEAN IsCapture);
+    CMiniportTopology(PUNKNOWN OuterUnknown, BOOLEAN IsCapture, DeviceExtension* DevExt);
     virtual ~CMiniportTopology();
+    DeviceExtension* GetDevExt() const { return m_DevExt; }
 
     // IMiniport
     STDMETHODIMP GetDescription(PPCFILTER_DESCRIPTOR* Description) override;
@@ -142,9 +190,10 @@ public:
                       IPortTopology* Port) override;
 
 private:
-    BOOLEAN  m_IsCapture;
-    BOOLEAN  m_IsInitialized;
-    PVOID    m_Port;
+    BOOLEAN          m_IsCapture;
+    BOOLEAN          m_IsInitialized;
+    PVOID            m_Port;
+    DeviceExtension* m_DevExt;
 };
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -156,3 +205,10 @@ inline DeviceExtension* GetDeviceExtension(PDEVICE_OBJECT DeviceObject)
     PUCHAR base = reinterpret_cast<PUCHAR>(DeviceObject->DeviceExtension);
     return reinterpret_cast<DeviceExtension*>(base + LEYLINE_PORT_CLASS_DEVICE_EXTENSION_SIZE);
 }
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// LOOPBACK DPC
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+extern "C" void LoopbackDpcRoutine(PKDPC Dpc, PVOID DeferredContext,
+                                   PVOID SystemArgument1, PVOID SystemArgument2);

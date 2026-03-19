@@ -27,6 +27,13 @@ static void NTAPI DriverUnload(PDRIVER_OBJECT /*DriverObject*/)
         DeviceExtension *ext = GetDeviceExtension(g_FunctionalDeviceObject);
         if (ext)
         {
+            // Cancel loopback timer before freeing any shared resources.
+            if (ext->TimerRunning)
+            {
+                KeCancelTimer(&ext->LoopbackTimer);
+                ext->TimerRunning = FALSE;
+            }
+
             if (ext->LoopbackMdl)
             {
                 if (ext->LoopbackBuffer) MmUnmapLockedPages(ext->LoopbackBuffer, ext->LoopbackMdl);

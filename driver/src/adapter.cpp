@@ -78,12 +78,41 @@ static NTSTATUS DispatchDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
         break;
 
     case IOCTL_LEYLINE_MAP_BUFFER:
+        if (stack->Parameters.DeviceIoControl.OutputBufferLength < sizeof(PVOID))
+        {
+            status = STATUS_BUFFER_TOO_SMALL;
+            break;
+        }
         if (g_FunctionalDeviceObject)
         {
             DeviceExtension *ext = GetDeviceExtension(g_FunctionalDeviceObject);
             if (ext->LoopbackMdl)
             {
                 PVOID userAddr = MmMapLockedPagesSpecifyCache(ext->LoopbackMdl, UserMode, MmCached, nullptr, FALSE, NormalPagePriority);
+                if (userAddr)
+                {
+                    *reinterpret_cast<PVOID*>(Irp->AssociatedIrp.SystemBuffer) = userAddr;
+                    info = sizeof(PVOID);
+                }
+                else status = STATUS_INSUFFICIENT_RESOURCES;
+            }
+            else status = STATUS_DEVICE_NOT_READY;
+        }
+        else status = STATUS_DEVICE_NOT_READY;
+        break;
+
+    case IOCTL_LEYLINE_MAP_PARAMS:
+        if (stack->Parameters.DeviceIoControl.OutputBufferLength < sizeof(PVOID))
+        {
+            status = STATUS_BUFFER_TOO_SMALL;
+            break;
+        }
+        if (g_FunctionalDeviceObject)
+        {
+            DeviceExtension *ext = GetDeviceExtension(g_FunctionalDeviceObject);
+            if (ext->SharedParamsMdl)
+            {
+                PVOID userAddr = MmMapLockedPagesSpecifyCache(ext->SharedParamsMdl, UserMode, MmCached, nullptr, FALSE, NormalPagePriority);
                 if (userAddr)
                 {
                     *reinterpret_cast<PVOID*>(Irp->AssociatedIrp.SystemBuffer) = userAddr;
@@ -115,6 +144,18 @@ extern "C" NTSTATUS NTAPI StartDevice(PDEVICE_OBJECT DeviceObject, PIRP Irp, PRE
 {
     NTSTATUS status;
     DeviceExtension *devExt = GetDeviceExtension(DeviceObject);
+
+    // Initialize loopback engine state.
+    KeInitializeSpinLock(&devExt->StreamLock);
+    devExt->ActiveRenderStream  = nullptr;
+    devExt->ActiveCaptureStream = nullptr;
+    devExt->TimerRunning        = FALSE;
+    devExt->LastCopiedByte      = 0;
+    devExt->VolumeLevel         = 0;       // 0 dB
+    devExt->MuteState           = 0;       // Unmuted
+    devExt->GainLinear16        = 0x10000;  // Unity gain (1.0 in 16.16)
+    KeInitializeTimer(&devExt->LoopbackTimer);
+    KeInitializeDpc(&devExt->LoopbackDpc, LoopbackDpcRoutine, devExt);
 
     if (!devExt->LoopbackMdl)
     {
@@ -198,7 +239,7 @@ extern "C" NTSTATUS NTAPI StartDevice(PDEVICE_OBJECT DeviceObject, PIRP Irp, PRE
     status = PcNewPort(&renderTopoPort, CLSID_PortTopology);
     if (NT_SUCCESS(status))
     {
-        CMiniportTopology *renderTopoMiniport = new (NonPagedPool, 'LLTR') CMiniportTopology(nullptr, FALSE);
+        CMiniportTopology *renderTopoMiniport = new (NonPagedPool, 'LLTR') CMiniportTopology(nullptr, FALSE, devExt);
         if (renderTopoMiniport)
         {
             renderTopoMiniport->AddRef();
@@ -218,7 +259,7 @@ extern "C" NTSTATUS NTAPI StartDevice(PDEVICE_OBJECT DeviceObject, PIRP Irp, PRE
     status = PcNewPort(&captureTopoPort, CLSID_PortTopology);
     if (NT_SUCCESS(status))
     {
-        CMiniportTopology *captureTopoMiniport = new (NonPagedPool, 'LLTC') CMiniportTopology(nullptr, TRUE);
+        CMiniportTopology *captureTopoMiniport = new (NonPagedPool, 'LLTC') CMiniportTopology(nullptr, TRUE, devExt);
         if (captureTopoMiniport)
         {
             captureTopoMiniport->AddRef();

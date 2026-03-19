@@ -8,7 +8,10 @@
 
 #pragma once
 
-#include "leyline_descriptors.h"
+#include "leyline_miniport.h"
+
+// FDO global, needed by property handlers to recover DeviceExtension.
+extern PDEVICE_OBJECT g_FunctionalDeviceObject;
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // HANDLERS (Internal)
