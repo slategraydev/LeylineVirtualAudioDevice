@@ -369,3 +369,42 @@ NTSTATUS AudioModuleHandler(PPCPROPERTY_REQUEST PropertyRequest)
     }
     return STATUS_NOT_IMPLEMENTED;
 }
+
+NTSTATUS PeakMeterHandler(PPCPROPERTY_REQUEST PropertyRequest)
+{
+    if (PropertyRequest->Verb & KSPROPERTY_TYPE_BASICSUPPORT)
+        return HandleBasicSupportFull(PropertyRequest, KSPROPERTY_TYPE_GET, KSPROPERTY_AUDIO_PEAKMETER);
+
+    if (PropertyRequest->Verb & KSPROPERTY_TYPE_GET)
+    {
+        if (PropertyRequest->ValueSize == 0)
+        {
+            PropertyRequest->ValueSize = sizeof(LONG);
+            return STATUS_BUFFER_OVERFLOW;
+        }
+        if (PropertyRequest->ValueSize < sizeof(LONG))
+            return STATUS_BUFFER_TOO_SMALL;
+
+        auto *val = reinterpret_cast<LONG*>(PropertyRequest->Value);
+        
+        ULONG channel = 0;
+        if (PropertyRequest->InstanceSize >= sizeof(KSNODEPROPERTY_AUDIO_CHANNEL))
+        {
+            auto* nodeProp = reinterpret_cast<KSNODEPROPERTY_AUDIO_CHANNEL*>(PropertyRequest->Instance);
+            channel = nodeProp->Channel;
+        }
+        
+        LONG peak = 0;
+        if (g_FunctionalDeviceObject)
+        {
+            DeviceExtension* devExt = GetDeviceExtension(g_FunctionalDeviceObject);
+            if (channel == (ULONG)-1 || channel == 0) // Master channel
+                peak = max(devExt->PeakLevel[0], devExt->PeakLevel[1]);
+            else if (channel == 1 || channel == 2)
+                peak = devExt->PeakLevel[channel - 1];
+        }
+        *val = peak;
+        PropertyRequest->ValueSize = sizeof(LONG);
+    }
+    return STATUS_SUCCESS;
+}

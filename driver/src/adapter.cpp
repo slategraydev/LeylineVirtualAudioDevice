@@ -154,6 +154,8 @@ extern "C" NTSTATUS NTAPI StartDevice(PDEVICE_OBJECT DeviceObject, PIRP Irp, PRE
     devExt->VolumeLevel         = 0;       // 0 dB
     devExt->MuteState           = 0;       // Unmuted
     devExt->GainLinear16        = 0x10000;  // Unity gain (1.0 in 16.16)
+    devExt->PeakLevel[0]        = 0;
+    devExt->PeakLevel[1]        = 0;
     KeInitializeTimer(&devExt->LoopbackTimer);
     KeInitializeDpc(&devExt->LoopbackDpc, LoopbackDpcRoutine, devExt);
 

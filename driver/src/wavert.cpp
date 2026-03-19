@@ -89,21 +89,19 @@ extern "C" void LoopbackDpcRoutine(PKDPC /*Dpc*/, PVOID DeferredContext,
         SIZE_T dstAvail = captureSize - dstOff;
         SIZE_T chunk    = min(remaining, min(srcAvail, dstAvail));
 
+        LONG peakL = 0;
+        LONG peakR = 0;
+
         if (muted)
         {
             RtlZeroMemory(captureBase + dstOff, chunk);
-        }
-        else if (gainFixed == 0x10000)
-        {
-            // Unity gain: straight copy.
-            RtlCopyMemory(captureBase + dstOff, renderBase + srcOff, chunk);
         }
         else
         {
             // Copy then scale in-place on the capture buffer.
             RtlCopyMemory(captureBase + dstOff, renderBase + srcOff, chunk);
 
-            // 16-bit PCM volume scaling via 16.16 fixed-point integer math.
+            // 16-bit PCM volume scaling and peak calculation.
             if (renderStream->GetBitsPerSample() == 16)
             {
                 const SIZE_T bytesPerSample = 2;
@@ -111,13 +109,38 @@ extern "C" void LoopbackDpcRoutine(PKDPC /*Dpc*/, PVOID DeferredContext,
                 for (SIZE_T s = 0; s < aligned; s += bytesPerSample)
                 {
                     INT16* sample = reinterpret_cast<INT16*>(captureBase + dstOff + s);
-                    INT32 scaled = ((INT32)*sample * (INT32)gainFixed) >> 16;
-                    if (scaled >  32767) scaled =  32767;
-                    if (scaled < -32768) scaled = -32768;
-                    *sample = (INT16)scaled;
+                    
+                    if (gainFixed != 0x10000)
+                    {
+                        INT32 scaled = ((INT32)*sample * (INT32)gainFixed) >> 16;
+                        if (scaled >  32767) scaled =  32767;
+                        if (scaled < -32768) scaled = -32768;
+                        *sample = (INT16)scaled;
+                    }
+
+                    LONG absVal = (*sample >= 0) ? *sample : -*sample;
+                    if ((s / bytesPerSample) % 2 == 0) // L
+                    {
+                        if (absVal > peakL) peakL = absVal;
+                    }
+                    else // R
+                    {
+                        if (absVal > peakR) peakR = absVal;
+                    }
                 }
             }
         }
+
+        // Decay the old peak level over time slightly, and push the new instantaneous peak.
+        // We use a small decay to keep the peak smoothed for the UI. (approx -5% per ms).
+        LONG newPeakL = peakL * 65535;
+        LONG newPeakR = peakR * 65535;
+        
+        LONG decayL = devExt->PeakLevel[0] - (devExt->PeakLevel[0] / 20);
+        LONG decayR = devExt->PeakLevel[1] - (devExt->PeakLevel[1] / 20);
+
+        devExt->PeakLevel[0] = max(decayL, newPeakL);
+        devExt->PeakLevel[1] = max(decayR, newPeakR);
 
         srcOff    = (srcOff + chunk) % renderSize;
         dstOff    = (dstOff + chunk) % captureSize;
