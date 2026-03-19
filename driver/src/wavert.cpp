@@ -27,12 +27,16 @@ extern "C" void LoopbackDpcRoutine(PKDPC /*Dpc*/, PVOID DeferredContext,
     KIRQL oldIrql;
     KeAcquireSpinLock(&devExt->StreamLock, &oldIrql);
 
-    CMiniportWaveRTStream* renderStream  = devExt->ActiveRenderStream;
-    CMiniportWaveRTStream* captureStream = devExt->ActiveCaptureStream;
+    if (IsListEmpty(&devExt->RenderStreams) || IsListEmpty(&devExt->CaptureStreams))
+    {
+        KeReleaseSpinLock(&devExt->StreamLock, oldIrql);
+        return;
+    }
 
-    if (!renderStream || !captureStream ||
-        renderStream->GetStreamState() != KSSTATE_RUN ||
-        captureStream->GetStreamState() != KSSTATE_RUN)
+    // For now, kernel-mixing relies on the first render stream as the master clock/source
+    CMiniportWaveRTStream* renderStream = CONTAINING_RECORD(devExt->RenderStreams.Flink, CMiniportWaveRTStream, m_ListEntry);
+
+    if (renderStream->GetStreamState() != KSSTATE_RUN)
     {
         KeReleaseSpinLock(&devExt->StreamLock, oldIrql);
         return;
@@ -40,17 +44,14 @@ extern "C" void LoopbackDpcRoutine(PKDPC /*Dpc*/, PVOID DeferredContext,
 
     PUCHAR renderBase  = renderStream->GetBufferBase();
     SIZE_T renderSize  = renderStream->GetBufferSize();
-    PUCHAR captureBase = captureStream->GetBufferBase();
-    SIZE_T captureSize = captureStream->GetBufferSize();
 
-    if (!renderBase || !captureBase || renderSize == 0 || captureSize == 0)
+    if (!renderBase || renderSize == 0)
     {
         KeReleaseSpinLock(&devExt->StreamLock, oldIrql);
         return;
     }
 
-    // Calculate current absolute byte position from QPC.
-    LONGLONG now     = KeQueryPerformanceCounter(nullptr).QuadPart;
+    LONGLONG now = KeQueryPerformanceCounter(nullptr).QuadPart;
     LONGLONG renderElapsed = now - renderStream->GetStartTime();
     ULONGLONG currentByte = WaveRTMath::TicksToBytes(
         renderElapsed, renderStream->GetStreamByteRate(), renderStream->GetFrequency());
@@ -64,24 +65,36 @@ extern "C" void LoopbackDpcRoutine(PKDPC /*Dpc*/, PVOID DeferredContext,
 
     renderStream->CheckAndSignalEvents(lastByte, currentByte);
 
-    LONGLONG captureElapsed = now - captureStream->GetStartTime();
-    ULONGLONG currentCapByte = WaveRTMath::TicksToBytes(
-        captureElapsed, captureStream->GetStreamByteRate(), captureStream->GetFrequency());
-    ULONGLONG lastCapByte = currentCapByte - (currentByte - lastByte); // Approximate
-    captureStream->CheckAndSignalEvents(lastCapByte, currentCapByte);
-
     ULONGLONG bytesToCopy = currentByte - lastByte;
-    SIZE_T maxCopy = min(renderSize, captureSize);
-    if (bytesToCopy > (ULONGLONG)maxCopy)
-        bytesToCopy = maxCopy;
 
-    BOOLEAN muted   = (devExt->MuteState != 0);
-    ULONG gainFixed = devExt->GainLinear16;
+    // Distribute to all capture streams
+    for (PLIST_ENTRY entry = devExt->CaptureStreams.Flink; entry != &devExt->CaptureStreams; entry = entry->Flink)
+    {
+        CMiniportWaveRTStream* captureStream = CONTAINING_RECORD(entry, CMiniportWaveRTStream, m_ListEntry);
+        
+        if (captureStream->GetStreamState() != KSSTATE_RUN) continue;
 
-    // Copy in segments to handle circular buffer wrap.
-    SIZE_T srcOff    = (SIZE_T)(lastByte % renderSize);
-    SIZE_T dstOff    = (SIZE_T)(lastByte % captureSize);
-    SIZE_T remaining = (SIZE_T)bytesToCopy;
+        PUCHAR captureBase = captureStream->GetBufferBase();
+        SIZE_T captureSize = captureStream->GetBufferSize();
+
+        if (!captureBase || captureSize == 0) continue;
+
+        LONGLONG captureElapsed = now - captureStream->GetStartTime();
+        ULONGLONG currentCapByte = WaveRTMath::TicksToBytes(
+            captureElapsed, captureStream->GetStreamByteRate(), captureStream->GetFrequency());
+        ULONGLONG lastCapByte = currentCapByte - bytesToCopy; // Tightly bound to render length
+
+        captureStream->CheckAndSignalEvents(lastCapByte, currentCapByte);
+
+        SIZE_T maxCopy = min(renderSize, captureSize);
+        ULONGLONG toCopy = (bytesToCopy > (ULONGLONG)maxCopy) ? maxCopy : bytesToCopy;
+
+        SIZE_T srcOff = (SIZE_T)(lastByte % renderSize);
+        SIZE_T dstOff = (SIZE_T)(lastCapByte % captureSize);
+        SIZE_T remaining = (SIZE_T)toCopy;
+
+        BOOLEAN muted   = (devExt->MuteState != 0);
+        ULONG gainFixed = devExt->GainLinear16;
 
     while (remaining > 0)
     {
@@ -147,6 +160,8 @@ extern "C" void LoopbackDpcRoutine(PKDPC /*Dpc*/, PVOID DeferredContext,
         remaining -= chunk;
     }
 
+    } // End loop over capture streams
+
     devExt->LastCopiedByte = currentByte;
     KeReleaseSpinLock(&devExt->StreamLock, oldIrql);
 }
@@ -163,20 +178,22 @@ static void RegisterStreamForLoopback(DeviceExtension* devExt, CMiniportWaveRTSt
     KeAcquireSpinLock(&devExt->StreamLock, &oldIrql);
 
     if (capture)
-        devExt->ActiveCaptureStream = stream;
+        InsertTailList(&devExt->CaptureStreams, &stream->m_ListEntry);
     else
-        devExt->ActiveRenderStream = stream;
+        InsertTailList(&devExt->RenderStreams, &stream->m_ListEntry);
 
-    // Start timer when both streams become active.
-    if (devExt->ActiveRenderStream && devExt->ActiveCaptureStream && !devExt->TimerRunning)
+    // Start timer when both lists become populated
+    if (!IsListEmpty(&devExt->RenderStreams) && !IsListEmpty(&devExt->CaptureStreams) && !devExt->TimerRunning)
     {
+        CMiniportWaveRTStream* masterRender = CONTAINING_RECORD(devExt->RenderStreams.Flink, CMiniportWaveRTStream, m_ListEntry);
+
         LONGLONG now          = KeQueryPerformanceCounter(nullptr).QuadPart;
-        LONGLONG renderStart  = devExt->ActiveRenderStream->GetStartTime();
+        LONGLONG renderStart  = masterRender->GetStartTime();
         LONGLONG renderElapsed = now - renderStart;
         devExt->LastCopiedByte = WaveRTMath::TicksToBytes(
             renderElapsed,
-            devExt->ActiveRenderStream->GetStreamByteRate(),
-            devExt->ActiveRenderStream->GetFrequency());
+            masterRender->GetStreamByteRate(),
+            masterRender->GetFrequency());
 
         LARGE_INTEGER dueTime;
         dueTime.QuadPart = LOOPBACK_PERIOD_100NS;
@@ -194,12 +211,10 @@ static void UnregisterStreamFromLoopback(DeviceExtension* devExt, CMiniportWaveR
     KIRQL oldIrql;
     KeAcquireSpinLock(&devExt->StreamLock, &oldIrql);
 
-    if (capture && devExt->ActiveCaptureStream == stream)
-        devExt->ActiveCaptureStream = nullptr;
-    else if (!capture && devExt->ActiveRenderStream == stream)
-        devExt->ActiveRenderStream = nullptr;
+    RemoveEntryList(&stream->m_ListEntry);
+    InitializeListHead(&stream->m_ListEntry);
 
-    if (!devExt->ActiveRenderStream && !devExt->ActiveCaptureStream && devExt->TimerRunning)
+    if ((IsListEmpty(&devExt->RenderStreams) || IsListEmpty(&devExt->CaptureStreams)) && devExt->TimerRunning)
     {
         KeCancelTimer(&devExt->LoopbackTimer);
         devExt->TimerRunning = FALSE;
@@ -229,6 +244,7 @@ CMiniportWaveRTStream::CMiniportWaveRTStream(PUNKNOWN OuterUnknown, DeviceExtens
     , m_IsFloat(FALSE)
     , m_NotificationBytes(0)
 {
+    InitializeListHead(&m_ListEntry);
     RtlZeroMemory(m_NotificationEvents, sizeof(m_NotificationEvents));
     LARGE_INTEGER freq = {};
     KeQueryPerformanceCounter(&freq);

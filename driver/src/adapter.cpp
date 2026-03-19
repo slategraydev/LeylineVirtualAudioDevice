@@ -147,8 +147,8 @@ extern "C" NTSTATUS NTAPI StartDevice(PDEVICE_OBJECT DeviceObject, PIRP Irp, PRE
 
     // Initialize loopback engine state.
     KeInitializeSpinLock(&devExt->StreamLock);
-    devExt->ActiveRenderStream  = nullptr;
-    devExt->ActiveCaptureStream = nullptr;
+    InitializeListHead(&devExt->RenderStreams);
+    InitializeListHead(&devExt->CaptureStreams);
     devExt->TimerRunning        = FALSE;
     devExt->LastCopiedByte      = 0;
     devExt->VolumeLevel         = 0;       // 0 dB

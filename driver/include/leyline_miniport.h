@@ -38,8 +38,8 @@ struct DeviceExtension
 
     // Loopback engine
     KSPIN_LOCK          StreamLock;
-    CMiniportWaveRTStream* ActiveRenderStream;
-    CMiniportWaveRTStream* ActiveCaptureStream;
+    LIST_ENTRY          RenderStreams;
+    LIST_ENTRY          CaptureStreams;
     KTIMER              LoopbackTimer;
     KDPC                LoopbackDpc;
     BOOLEAN             TimerRunning;
@@ -128,6 +128,8 @@ private:
     // Notification events
     PKEVENT            m_NotificationEvents[8];
     ULONG              m_NotificationBytes;
+
+    LIST_ENTRY         m_ListEntry;
 };
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

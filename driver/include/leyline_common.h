@@ -60,7 +60,7 @@ class RingBuffer
 public:
     RingBuffer() : m_Buffer(nullptr), m_Size(0), m_WritePos(0), m_ReadPos(0) {}
 
-    void Init(PUCHAR buffer, SIZE_T size)
+    void Init(PUCHAR buffer, ULONG size)
     {
         m_Buffer   = buffer;
         m_Size     = size;
@@ -69,9 +69,9 @@ public:
     }
 
     PUCHAR GetBaseAddress() const { return m_Buffer; }
-    SIZE_T GetSize()        const { return m_Size; }
+    ULONG  GetSize()        const { return m_Size; }
 
-    SIZE_T AvailableWrite() const
+    ULONG AvailableWrite() const
     {
         if (m_Size == 0) return 0;
         if (m_WritePos >= m_ReadPos)
@@ -79,7 +79,7 @@ public:
         return m_ReadPos - m_WritePos - 1;
     }
 
-    SIZE_T AvailableRead() const
+    ULONG AvailableRead() const
     {
         if (m_Size == 0) return 0;
         if (m_WritePos >= m_ReadPos)
@@ -87,13 +87,13 @@ public:
         return m_Size - (m_ReadPos - m_WritePos);
     }
 
-    SIZE_T Write(const PUCHAR data, SIZE_T len)
+    ULONG Write(const PUCHAR data, ULONG len)
     {
-        SIZE_T available = AvailableWrite();
-        SIZE_T toWrite   = min(len, available);
+        ULONG available = AvailableWrite();
+        ULONG toWrite   = min(len, available);
         if (toWrite == 0) return 0;
 
-        SIZE_T firstPart = min(toWrite, m_Size - m_WritePos);
+        ULONG firstPart = min(toWrite, m_Size - m_WritePos);
         RtlCopyMemory(m_Buffer + m_WritePos, data, firstPart);
 
         if (firstPart < toWrite)
@@ -103,13 +103,13 @@ public:
         return toWrite;
     }
 
-    SIZE_T Read(PUCHAR data, SIZE_T len)
+    ULONG Read(PUCHAR data, ULONG len)
     {
-        SIZE_T available = AvailableRead();
-        SIZE_T toRead    = min(len, available);
+        ULONG available = AvailableRead();
+        ULONG toRead    = min(len, available);
         if (toRead == 0) return 0;
 
-        SIZE_T firstPart = min(toRead, m_Size - m_ReadPos);
+        ULONG firstPart = min(toRead, m_Size - m_ReadPos);
         RtlCopyMemory(data, m_Buffer + m_ReadPos, firstPart);
 
         if (firstPart < toRead)
@@ -123,9 +123,9 @@ public:
 
 private:
     PUCHAR  m_Buffer;
-    SIZE_T  m_Size;
-    SIZE_T  m_WritePos;
-    SIZE_T  m_ReadPos;
+    ULONG   m_Size;
+    ULONG   m_WritePos;
+    ULONG   m_ReadPos;
 };
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
