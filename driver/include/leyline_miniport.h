@@ -49,7 +49,6 @@ struct DeviceExtension
     LONG                VolumeLevel;      // 1/65536 dB, range [-96*0x10000, 0]
     LONG                MuteState;        // 0 = unmuted, nonzero = muted
     ULONG               GainLinear16;     // Precomputed 16.16 fixed-point linear gain
-    LONG                PeakLevel[2];     // Normalized to 0-0x7FFFFFFF
 };
 
 // The PortCls reference driver reserves this many pointer-sized slots

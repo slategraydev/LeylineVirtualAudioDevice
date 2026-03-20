@@ -70,21 +70,9 @@ static const PCPROPERTY_ITEM g_MuteProperties[] =
       KSPROPERTY_TYPE_GET | KSPROPERTY_TYPE_SET | KSPROPERTY_TYPE_BASICSUPPORT, MuteHandler }
 };
 
-// PeakMeter property
-static const PCPROPERTY_ITEM g_PeakMeterProperties[] =
-{
-    {
-        &KSPROPSETID_Audio,
-        KSPROPERTY_AUDIO_PEAKMETER,
-        KSPROPERTY_TYPE_GET | KSPROPERTY_TYPE_BASICSUPPORT,
-        PeakMeterHandler
-    }
-};
-
 DEFINE_PCAUTOMATION_TABLE_PROP(g_ComponentAutomationTable,  g_GeneralProperties);
 DEFINE_PCAUTOMATION_TABLE_PROP(g_WaveFilterAutomationTable,  g_WaveFilterProperties);
 DEFINE_PCAUTOMATION_TABLE_PROP(g_TopoFilterAutomationTable,  g_TopoFilterProperties);
 DEFINE_PCAUTOMATION_TABLE_PROP(g_PinAutomationTable,         g_PinProperties);
 DEFINE_PCAUTOMATION_TABLE_PROP(g_VolumeAutomationTable,      g_VolumeProperties);
 DEFINE_PCAUTOMATION_TABLE_PROP(g_MuteAutomationTable,        g_MuteProperties);
-DEFINE_PCAUTOMATION_TABLE_PROP(g_PeakMeterAutomationTable,   g_PeakMeterProperties);

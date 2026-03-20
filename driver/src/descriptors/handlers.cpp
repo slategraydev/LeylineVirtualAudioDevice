@@ -157,43 +157,7 @@ NTSTATUS VolumeHandler(PPCPROPERTY_REQUEST PropertyRequest)
     if (PropertyRequest->Verb & KSPROPERTY_TYPE_GET)
     {
         auto *val = reinterpret_cast<LONG*>(PropertyRequest->Value);
-        if (val)
-        {
-            LONG vol = 0;
-            if (g_FunctionalDeviceObject)
-            {
-                DeviceExtension* devExt = GetDeviceExtension(g_FunctionalDeviceObject);
-                vol = devExt->VolumeLevel;
-            }
-            *val = vol;
-        }
-    }
-    else if (PropertyRequest->Verb & KSPROPERTY_TYPE_SET)
-    {
-        auto *val = reinterpret_cast<LONG*>(PropertyRequest->Value);
-        if (val && g_FunctionalDeviceObject)
-        {
-            DeviceExtension* devExt = GetDeviceExtension(g_FunctionalDeviceObject);
-            devExt->VolumeLevel = *val;
-
-            // Precompute 16.16 fixed-point linear gain.
-            // Each -6 dB (approx -393216 in 1/65536 units) halves the gain.
-            LONG dBFixed = *val;  // Negative or zero.
-            if (dBFixed >= 0)
-            {
-                devExt->GainLinear16 = 0x10000;
-            }
-            else
-            {
-                // Integer approximation: shift right by 1 for each 6 dB of attenuation.
-                LONG absDelta = -dBFixed;  // Positive magnitude.
-                LONG sixDbSteps = absDelta / (6 * 0x10000);
-                if (sixDbSteps >= 16)
-                    devExt->GainLinear16 = 0;
-                else
-                    devExt->GainLinear16 = 0x10000 >> sixDbSteps;
-            }
-        }
+        if (val) *val = 0; // Lock to 0 dB (Unity Gain)
     }
     return STATUS_SUCCESS;
 }
@@ -213,26 +177,9 @@ NTSTATUS MuteHandler(PPCPROPERTY_REQUEST PropertyRequest)
     if (PropertyRequest->Verb & KSPROPERTY_TYPE_GET)
     {
         auto *val = reinterpret_cast<LONG*>(PropertyRequest->Value);
-        if (val)
-        {
-            LONG mute = 0;
-            if (g_FunctionalDeviceObject)
-            {
-                DeviceExtension* devExt = GetDeviceExtension(g_FunctionalDeviceObject);
-                mute = devExt->MuteState;
-            }
-            *val = mute;
-        }
+        if (val) *val = 0; // Lock to unmuted
     }
-    else if (PropertyRequest->Verb & KSPROPERTY_TYPE_SET)
-    {
-        auto *val = reinterpret_cast<LONG*>(PropertyRequest->Value);
-        if (val && g_FunctionalDeviceObject)
-        {
-            DeviceExtension* devExt = GetDeviceExtension(g_FunctionalDeviceObject);
-            devExt->MuteState = *val;
-        }
-    }
+    // Ignore sets.
     return STATUS_SUCCESS;
 }
 
@@ -368,43 +315,4 @@ NTSTATUS AudioModuleHandler(PPCPROPERTY_REQUEST PropertyRequest)
         return STATUS_SUCCESS;
     }
     return STATUS_NOT_IMPLEMENTED;
-}
-
-NTSTATUS PeakMeterHandler(PPCPROPERTY_REQUEST PropertyRequest)
-{
-    if (PropertyRequest->Verb & KSPROPERTY_TYPE_BASICSUPPORT)
-        return HandleBasicSupportFull(PropertyRequest, KSPROPERTY_TYPE_GET, KSPROPERTY_AUDIO_PEAKMETER);
-
-    if (PropertyRequest->Verb & KSPROPERTY_TYPE_GET)
-    {
-        if (PropertyRequest->ValueSize == 0)
-        {
-            PropertyRequest->ValueSize = sizeof(LONG);
-            return STATUS_BUFFER_OVERFLOW;
-        }
-        if (PropertyRequest->ValueSize < sizeof(LONG))
-            return STATUS_BUFFER_TOO_SMALL;
-
-        auto *val = reinterpret_cast<LONG*>(PropertyRequest->Value);
-        
-        ULONG channel = 0;
-        if (PropertyRequest->InstanceSize >= sizeof(KSNODEPROPERTY_AUDIO_CHANNEL))
-        {
-            auto* nodeProp = reinterpret_cast<KSNODEPROPERTY_AUDIO_CHANNEL*>(PropertyRequest->Instance);
-            channel = nodeProp->Channel;
-        }
-        
-        LONG peak = 0;
-        if (g_FunctionalDeviceObject)
-        {
-            DeviceExtension* devExt = GetDeviceExtension(g_FunctionalDeviceObject);
-            if (channel == (ULONG)-1 || channel == 0) // Master channel
-                peak = max(devExt->PeakLevel[0], devExt->PeakLevel[1]);
-            else if (channel == 1 || channel == 2)
-                peak = devExt->PeakLevel[channel - 1];
-        }
-        *val = peak;
-        PropertyRequest->ValueSize = sizeof(LONG);
-    }
-    return STATUS_SUCCESS;
 }

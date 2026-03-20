@@ -12,7 +12,6 @@ const PCNODE_DESCRIPTOR g_TopoNodes[] =
 {
     { 0, &g_VolumeAutomationTable, &KSNODETYPE_VOLUME,     &KSAUDFNAME_MASTER_VOLUME },
     { 0, &g_MuteAutomationTable,   &KSNODETYPE_MUTE,       &KSAUDFNAME_MASTER_MUTE   },
-    { 0, &g_PeakMeterAutomationTable, &KSNODETYPE_PEAKMETER, &KSAUDFNAME_PEAKMETER   },
 };
 
 const PCPIN_DESCRIPTOR g_WaveRenderPins[] =
@@ -129,8 +128,7 @@ const PCCONNECTION_DESCRIPTOR g_TopoConnections[] =
 {
     { PCFILTER_NODE, KSPIN_TOPO_BRIDGE,  0,             0 },
     { 0,             1,                  1,             0 },
-    { 1,             1,                  2,             0 },
-    { 2,             1,                  PCFILTER_NODE, KSPIN_TOPO_LINEOUT }
+    { 1,             1,                  PCFILTER_NODE, KSPIN_TOPO_LINEOUT }
 };
 
 const PCCONNECTION_DESCRIPTOR g_TopoCaptureConnections[] =

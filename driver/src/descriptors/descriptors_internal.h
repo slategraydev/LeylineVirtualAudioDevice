@@ -20,7 +20,6 @@ extern PDEVICE_OBJECT g_FunctionalDeviceObject;
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 NTSTATUS HandleBasicSupportFull(PPCPROPERTY_REQUEST Req, ULONG AccessFlags, ULONG TypeId);
-NTSTATUS PeakMeterHandler(PPCPROPERTY_REQUEST PropertyRequest);
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // AUTOMATION TABLES
@@ -32,7 +31,6 @@ extern const PCAUTOMATION_TABLE g_TopoFilterAutomationTable;
 extern const PCAUTOMATION_TABLE g_PinAutomationTable;
 extern const PCAUTOMATION_TABLE g_VolumeAutomationTable;
 extern const PCAUTOMATION_TABLE g_MuteAutomationTable;
-extern const PCAUTOMATION_TABLE g_PeakMeterAutomationTable;
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // PINS & NODES
