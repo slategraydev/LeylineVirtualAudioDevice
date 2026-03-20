@@ -19,6 +19,7 @@ ULONGLONG      g_EtwRegHandle           = 0;
 static PDRIVER_DISPATCH s_OriginalDispatchCreate  = nullptr;
 static PDRIVER_DISPATCH s_OriginalDispatchClose   = nullptr;
 static PDRIVER_DISPATCH s_OriginalDispatchControl = nullptr;
+static PDRIVER_DISPATCH s_OriginalDispatchPnp     = nullptr;
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IRP DISPATCH ROUTINES
@@ -135,6 +136,112 @@ static NTSTATUS DispatchDeviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
     IoCompleteRequest(Irp, IO_NO_INCREMENT);
     return status;
 }
+
+static NTSTATUS DispatchPnp(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+{
+    PIO_STACK_LOCATION stack = IoGetCurrentIrpStackLocation(Irp);
+
+    if (DeviceObject == g_FunctionalDeviceObject)
+    {
+        if (stack->MinorFunction == IRP_MN_SURPRISE_REMOVAL || stack->MinorFunction == IRP_MN_REMOVE_DEVICE)
+        {
+            DeviceExtension* ext = GetDeviceExtension(DeviceObject);
+            if (ext)
+            {
+                KIRQL oldIrql;
+                KeAcquireSpinLock(&ext->StreamLock, &oldIrql);
+                if (ext->TimerRunning)
+                {
+                    KeCancelTimer(&ext->LoopbackTimer);
+                    ext->TimerRunning = FALSE;
+                }
+                KeReleaseSpinLock(&ext->StreamLock, oldIrql);
+                KeRemoveQueueDpc(&ext->LoopbackDpc);
+            }
+        }
+    }
+    else if (DeviceObject == g_ControlDeviceObject)
+    {
+        Irp->IoStatus.Status = STATUS_SUCCESS;
+        IoCompleteRequest(Irp, IO_NO_INCREMENT);
+        return STATUS_SUCCESS;
+    }
+
+    if (s_OriginalDispatchPnp)
+        return s_OriginalDispatchPnp(DeviceObject, Irp);
+
+    return STATUS_SUCCESS;
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// POWER MANAGEMENT
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+class CAdapterPowerManagement : public IAdapterPowerManagement,
+                                public CUnknown
+{
+public:
+    DECLARE_STD_UNKNOWN();
+
+    CAdapterPowerManagement(PUNKNOWN OuterUnknown, DeviceExtension* DevExt)
+        : CUnknown(OuterUnknown), m_DevExt(DevExt) {}
+    virtual ~CAdapterPowerManagement() {}
+
+    STDMETHODIMP NonDelegatingQueryInterface(REFIID riid, PVOID* ppvObject) override
+    {
+        if (IsEqualGUID(riid, IID_IAdapterPowerManagement) || IsEqualGUID(riid, IID_IUnknown))
+        {
+            *ppvObject = reinterpret_cast<PVOID>(static_cast<IAdapterPowerManagement*>(this));
+            AddRef();
+            return STATUS_SUCCESS;
+        }
+        return STATUS_NOINTERFACE;
+    }
+
+    STDMETHODIMP_(void) PowerChangeState(POWER_STATE NewState) override
+    {
+        if (!m_DevExt) return;
+
+        if (NewState.DeviceState != PowerDeviceD0)
+        {
+            KIRQL oldIrql;
+            KeAcquireSpinLock(&m_DevExt->StreamLock, &oldIrql);
+            if (m_DevExt->TimerRunning)
+            {
+                KeCancelTimer(&m_DevExt->LoopbackTimer);
+                m_DevExt->TimerRunning = FALSE;
+            }
+            KeReleaseSpinLock(&m_DevExt->StreamLock, oldIrql);
+            KeRemoveQueueDpc(&m_DevExt->LoopbackDpc);
+        }
+        else
+        {
+            KIRQL oldIrql;
+            KeAcquireSpinLock(&m_DevExt->StreamLock, &oldIrql);
+            if (!IsListEmpty(&m_DevExt->RenderStreams) && !IsListEmpty(&m_DevExt->CaptureStreams) && !m_DevExt->TimerRunning)
+            {
+                LARGE_INTEGER dueTime;
+                dueTime.QuadPart = -10000LL;
+                KeSetTimerEx(&m_DevExt->LoopbackTimer, dueTime, 1, &m_DevExt->LoopbackDpc);
+                m_DevExt->TimerRunning = TRUE;
+            }
+            KeReleaseSpinLock(&m_DevExt->StreamLock, oldIrql);
+        }
+    }
+
+    STDMETHODIMP QueryPowerChangeState(POWER_STATE /*NewStateQuery*/) override
+    {
+        return STATUS_SUCCESS;
+    }
+
+    STDMETHODIMP QueryDeviceCapabilities(PDEVICE_CAPABILITIES /*PowerDeviceCaps*/) override
+    {
+        return STATUS_SUCCESS;
+    }
+
+private:
+    DeviceExtension* m_DevExt;
+};
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // StartDevice - PORTCLS CALLBACK
@@ -307,6 +414,16 @@ extern "C" NTSTATUS NTAPI StartDevice(PDEVICE_OBJECT DeviceObject, PIRP Irp, PRE
         capturePortUnk->Release();
     }
 
+    // Power Management
+    {
+        CAdapterPowerManagement* powerMgmt = new (NonPagedPool, 'LLPM') CAdapterPowerManagement(nullptr, devExt);
+        if (powerMgmt)
+        {
+            PcRegisterAdapterPowerManagement(reinterpret_cast<PUNKNOWN>(powerMgmt), DeviceObject);
+            powerMgmt->Release();
+        }
+    }
+
     // CDO Creation
     g_FunctionalDeviceObject = DeviceObject;
     if (!g_ControlDeviceObject)
@@ -324,10 +441,12 @@ extern "C" NTSTATUS NTAPI StartDevice(PDEVICE_OBJECT DeviceObject, PIRP Irp, PRE
             s_OriginalDispatchCreate  = DeviceObject->DriverObject->MajorFunction[IRP_MJ_CREATE];
             s_OriginalDispatchClose   = DeviceObject->DriverObject->MajorFunction[IRP_MJ_CLOSE];
             s_OriginalDispatchControl = DeviceObject->DriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL];
+            s_OriginalDispatchPnp     = DeviceObject->DriverObject->MajorFunction[IRP_MJ_PNP];
 
             DeviceObject->DriverObject->MajorFunction[IRP_MJ_CREATE]         = DispatchCreate;
             DeviceObject->DriverObject->MajorFunction[IRP_MJ_CLOSE]          = DispatchClose;
             DeviceObject->DriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = DispatchDeviceControl;
+            DeviceObject->DriverObject->MajorFunction[IRP_MJ_PNP]            = DispatchPnp;
         }
     }
 
