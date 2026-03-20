@@ -20,6 +20,7 @@ extern PDEVICE_OBJECT g_FunctionalDeviceObject;
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 NTSTATUS HandleBasicSupportFull(PPCPROPERTY_REQUEST Req, ULONG AccessFlags, ULONG TypeId);
+NTSTATUS SignalProcessingModesHandler(PPCPROPERTY_REQUEST PropertyRequest);
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // AUTOMATION TABLES

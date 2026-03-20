@@ -206,6 +206,30 @@ NTSTATUS PinCategoryHandler(PPCPROPERTY_REQUEST PropertyRequest)
     return STATUS_SUCCESS;
 }
 
+NTSTATUS SignalProcessingModesHandler(PPCPROPERTY_REQUEST PropertyRequest)
+{
+    if (!PropertyRequest || !PropertyRequest->PropertyItem) return STATUS_INVALID_PARAMETER;
+
+    if (PropertyRequest->Verb & KSPROPERTY_TYPE_BASICSUPPORT)
+        return HandleBasicSupportFull(PropertyRequest, KSPROPERTY_TYPE_GET | KSPROPERTY_TYPE_BASICSUPPORT, VT_ILLEGAL);
+
+    // Ensure we report RAW (0x98951333, 0xB9CD, 0x48B1, 0xA4, 0xA3, 0xEE, 0x40, 0x69, 0xC5, 0x22, 0xB0)
+    // and DEFAULT modes.
+    const GUID modes[] = { AUDIO_SIGNALPROCESSINGMODE_RAW, AUDIO_SIGNALPROCESSINGMODE_DEFAULT };
+    const ULONG modesSize = sizeof(modes);
+
+    if (PropertyRequest->ValueSize == 0)
+    {
+        PropertyRequest->ValueSize = modesSize;
+        return STATUS_BUFFER_OVERFLOW;
+    }
+    if (PropertyRequest->ValueSize < modesSize) return STATUS_BUFFER_TOO_SMALL;
+
+    RtlCopyMemory(PropertyRequest->Value, modes, modesSize);
+    PropertyRequest->ValueSize = modesSize;
+    return STATUS_SUCCESS;
+}
+
 NTSTATUS PinNameHandler(PPCPROPERTY_REQUEST PropertyRequest)
 {
     if (!PropertyRequest || !PropertyRequest->PropertyItem) return STATUS_INVALID_PARAMETER;

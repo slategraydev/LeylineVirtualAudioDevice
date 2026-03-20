@@ -89,6 +89,12 @@ extern "C" void LoopbackDpcRoutine(PKDPC /*Dpc*/, PVOID DeferredContext,
         SIZE_T maxCopy = min(renderSize, captureSize);
         ULONGLONG toCopy = (bytesToCopy > (ULONGLONG)maxCopy) ? maxCopy : bytesToCopy;
 
+        if (bytesToCopy > (ULONGLONG)maxCopy)
+        {
+            devExt->GlitchCount++;
+            DbgPrint("Leyline: Overrun detected! Lost %llu bytes. GlitchCount: %u\n", bytesToCopy - (ULONGLONG)maxCopy, devExt->GlitchCount);
+        }
+
         SIZE_T srcOff = (SIZE_T)(lastByte % renderSize);
         SIZE_T dstOff = (SIZE_T)(lastCapByte % captureSize);
         SIZE_T remaining = (SIZE_T)toCopy;
@@ -329,10 +335,24 @@ STDMETHODIMP CMiniportWaveRTStream::AllocateAudioBuffer(
 {
     if (m_Mdl) return STATUS_ALREADY_COMMITTED;
 
+    ULONG frameSize = (m_BitsPerSample / 8) * m_Channels;
+    if (frameSize == 0) frameSize = 4;
+
+    ULONG minBytes = (m_ByteRate / 1000); // 1ms
+    if (minBytes == 0) minBytes = 128 * frameSize;
+
+    ULONG maxBytes = m_ByteRate * 5; // 5 seconds
+    
+    ULONG safeSize = RequestedSize;
+    if (safeSize < minBytes) safeSize = minBytes;
+    if (safeSize > maxBytes) safeSize = maxBytes;
+
+    safeSize = (safeSize + (frameSize - 1)) & ~(frameSize - 1);
+
     PHYSICAL_ADDRESS low  = { 0 }, high = { 0 }, skip = { 0 };
     high.LowPart = 0xFFFFFFFF;
 
-    PMDL mdl = MmAllocatePagesForMdlEx(low, high, skip, RequestedSize, MmCached, MM_ALLOCATE_FULLY_REQUIRED);
+    PMDL mdl = MmAllocatePagesForMdlEx(low, high, skip, safeSize, MmCached, MM_ALLOCATE_FULLY_REQUIRED);
     if (!mdl)
     {
         if (m_DevExt && m_DevExt->LoopbackMdl)

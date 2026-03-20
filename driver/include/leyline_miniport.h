@@ -44,6 +44,7 @@ struct DeviceExtension
     KDPC                LoopbackDpc;
     BOOLEAN             TimerRunning;
     ULONGLONG           LastCopiedByte;
+    ULONG               GlitchCount;
 
     // Volume / Mute (shared between property handlers and DPC)
     LONG                VolumeLevel;      // 1/65536 dB, range [-96*0x10000, 0]
