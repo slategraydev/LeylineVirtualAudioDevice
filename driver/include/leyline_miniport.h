@@ -98,6 +98,13 @@ public:
     // Event signaling helper
     void CheckAndSignalEvents(ULONGLONG lastPosBytes, ULONGLONG currentPosBytes);
 
+    // Hardware register update helper
+    void UpdateHwRegisters(ULONGLONG PositionBytes, ULONGLONG ClockValue)
+    {
+        m_HwPositionRegister = PositionBytes;
+        m_HwClockRegister = ClockValue;
+    }
+
     // Public accessors for the loopback engine.
     PUCHAR   GetBufferBase()     const { return m_Buffer.GetBaseAddress(); }
     SIZE_T   GetBufferSize()     const { return m_Buffer.GetSize(); }
@@ -128,6 +135,10 @@ private:
     // Notification events
     PKEVENT            m_NotificationEvents[8];
     ULONG              m_NotificationBytes;
+
+    // Hardware Registers
+    ULONGLONG          m_HwPositionRegister;
+    ULONGLONG          m_HwClockRegister;
 
     LIST_ENTRY         m_ListEntry;
 };

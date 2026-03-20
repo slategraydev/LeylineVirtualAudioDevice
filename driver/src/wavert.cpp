@@ -63,6 +63,7 @@ extern "C" void LoopbackDpcRoutine(PKDPC /*Dpc*/, PVOID DeferredContext,
         return;
     }
 
+    renderStream->UpdateHwRegisters(currentByte, (ULONGLONG)now);
     renderStream->CheckAndSignalEvents(lastByte, currentByte);
 
     ULONGLONG bytesToCopy = currentByte - lastByte;
@@ -84,6 +85,7 @@ extern "C" void LoopbackDpcRoutine(PKDPC /*Dpc*/, PVOID DeferredContext,
             captureElapsed, captureStream->GetStreamByteRate(), captureStream->GetFrequency());
         ULONGLONG lastCapByte = currentCapByte - bytesToCopy; // Tightly bound to render length
 
+        captureStream->UpdateHwRegisters(currentCapByte, (ULONGLONG)now);
         captureStream->CheckAndSignalEvents(lastCapByte, currentCapByte);
 
         SIZE_T maxCopy = min(renderSize, captureSize);
@@ -196,6 +198,8 @@ CMiniportWaveRTStream::CMiniportWaveRTStream(PUNKNOWN OuterUnknown, DeviceExtens
     , m_Channels(2)
     , m_IsFloat(FALSE)
     , m_NotificationBytes(0)
+    , m_HwPositionRegister(0)
+    , m_HwClockRegister(0)
 {
     InitializeListHead(&m_ListEntry);
     RtlZeroMemory(m_NotificationEvents, sizeof(m_NotificationEvents));
@@ -415,14 +419,33 @@ STDMETHODIMP_(void) CMiniportWaveRTStream::GetHWLatency(KSRTAUDIO_HWLATENCY* Lat
     }
 }
 
-STDMETHODIMP CMiniportWaveRTStream::GetPositionRegister(KSRTAUDIO_HWREGISTER* /*Register*/)
+STDMETHODIMP CMiniportWaveRTStream::GetPositionRegister(KSRTAUDIO_HWREGISTER* Register)
 {
-    return STATUS_UNSUCCESSFUL;
+    if (!Register) return STATUS_INVALID_PARAMETER;
+
+    Register->Register    = &m_HwPositionRegister;
+    Register->Width       = 64;
+    Register->Numerator   = 1;
+    Register->Denominator = 1;
+    Register->Accuracy    = 0;
+
+    return STATUS_SUCCESS;
 }
 
-STDMETHODIMP CMiniportWaveRTStream::GetClockRegister(KSRTAUDIO_HWREGISTER* /*Register*/)
+STDMETHODIMP CMiniportWaveRTStream::GetClockRegister(KSRTAUDIO_HWREGISTER* Register)
 {
-    return STATUS_UNSUCCESSFUL;
+    if (!Register) return STATUS_INVALID_PARAMETER;
+
+    LARGE_INTEGER freq;
+    KeQueryPerformanceCounter(&freq); // Get the frequency of QPC
+
+    Register->Register    = &m_HwClockRegister;
+    Register->Width       = 64;
+    Register->Numerator   = (ULONG)freq.QuadPart;
+    Register->Denominator = 1;
+    Register->Accuracy    = 0;
+
+    return STATUS_SUCCESS;
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
