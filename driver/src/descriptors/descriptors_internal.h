@@ -37,27 +37,27 @@ extern const PCAUTOMATION_TABLE g_MuteAutomationTable;
 // PINS & NODES
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-extern const PCNODE_DESCRIPTOR      g_TopoNodes[];
-extern const PCPIN_DESCRIPTOR       g_WaveRenderPins[];
-extern const PCPIN_DESCRIPTOR       g_WaveCapturePins[];
-extern const PCPIN_DESCRIPTOR       g_TopoRenderPins[];
-extern const PCPIN_DESCRIPTOR       g_TopoCapturePins[];
+extern const PCNODE_DESCRIPTOR      g_TopoNodes[2];
+extern const PCPIN_DESCRIPTOR       g_WaveRenderPins[2];
+extern const PCPIN_DESCRIPTOR       g_WaveCapturePins[2];
+extern const PCPIN_DESCRIPTOR       g_TopoRenderPins[2];
+extern const PCPIN_DESCRIPTOR       g_TopoCapturePins[2];
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // CONNECTIONS & CATEGORIES
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-extern const PCCONNECTION_DESCRIPTOR g_WaveConnections[];
-extern const PCCONNECTION_DESCRIPTOR g_WaveCaptureConnections[];
-extern const PCCONNECTION_DESCRIPTOR g_TopoConnections[];
-extern const PCCONNECTION_DESCRIPTOR g_TopoCaptureConnections[];
+extern const PCCONNECTION_DESCRIPTOR g_WaveConnections[1];
+extern const PCCONNECTION_DESCRIPTOR g_WaveCaptureConnections[1];
+extern const PCCONNECTION_DESCRIPTOR g_TopoConnections[3];
+extern const PCCONNECTION_DESCRIPTOR g_TopoCaptureConnections[1];
 
-extern const GUID g_TopoFilterCategories[];
-extern const GUID g_WaveRenderCategories[];
-extern const GUID g_WaveCaptureCategories[];
+extern const GUID g_TopoFilterCategories[2];
+extern const GUID g_WaveRenderCategories[3];
+extern const GUID g_WaveCaptureCategories[3];
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // COMMON DATA
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-extern const KSIDENTIFIER g_KsInterfaces[];
+extern const KSIDENTIFIER g_KsInterfaces[1];

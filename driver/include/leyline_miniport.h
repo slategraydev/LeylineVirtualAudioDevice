@@ -117,6 +117,8 @@ public:
     ULONG    GetChannels()       const { return m_Channels; }
     BOOLEAN  IsFloat()           const { return m_IsFloat; }
 
+    LIST_ENTRY         m_ListEntry;
+
 private:
     RingBuffer         m_Buffer;
     KSSTATE            m_State;
@@ -139,8 +141,6 @@ private:
     // Hardware Registers
     ULONGLONG          m_HwPositionRegister;
     ULONGLONG          m_HwClockRegister;
-
-    LIST_ENTRY         m_ListEntry;
 };
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

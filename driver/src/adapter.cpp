@@ -7,6 +7,8 @@
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #include "leyline_miniport.h"
+#include <wdmsec.h>
+#include <devguid.h>
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // GLOBALS
@@ -187,17 +189,6 @@ public:
         : CUnknown(OuterUnknown), m_DevExt(DevExt) {}
     virtual ~CAdapterPowerManagement() {}
 
-    STDMETHODIMP NonDelegatingQueryInterface(REFIID riid, PVOID* ppvObject) override
-    {
-        if (IsEqualGUID(riid, IID_IAdapterPowerManagement) || IsEqualGUID(riid, IID_IUnknown))
-        {
-            *ppvObject = reinterpret_cast<PVOID>(static_cast<IAdapterPowerManagement*>(this));
-            AddRef();
-            return STATUS_SUCCESS;
-        }
-        return STATUS_NOINTERFACE;
-    }
-
     STDMETHODIMP_(void) PowerChangeState(POWER_STATE NewState) override
     {
         if (!m_DevExt) return;
@@ -243,6 +234,17 @@ private:
     DeviceExtension* m_DevExt;
 };
 
+STDMETHODIMP CAdapterPowerManagement::NonDelegatingQueryInterface(REFIID riid, PVOID* ppvObject)
+{
+    if (IsEqualGUID(riid, IID_IAdapterPowerManagement) || IsEqualGUID(riid, IID_IUnknown))
+    {
+        *ppvObject = reinterpret_cast<PVOID>(static_cast<IAdapterPowerManagement*>(this));
+        AddRef();
+        return STATUS_SUCCESS;
+    }
+    return STATUS_NOINTERFACE;
+}
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // StartDevice - PORTCLS CALLBACK
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -262,8 +264,6 @@ extern "C" NTSTATUS NTAPI StartDevice(PDEVICE_OBJECT DeviceObject, PIRP Irp, PRE
     devExt->VolumeLevel         = 0;       // 0 dB
     devExt->MuteState           = 0;       // Unmuted
     devExt->GainLinear16        = 0x10000;  // Unity gain (1.0 in 16.16)
-    devExt->PeakLevel[0]        = 0;
-    devExt->PeakLevel[1]        = 0;
     KeInitializeTimer(&devExt->LoopbackTimer);
     KeInitializeDpc(&devExt->LoopbackDpc, LoopbackDpcRoutine, devExt);
 
@@ -430,7 +430,9 @@ extern "C" NTSTATUS NTAPI StartDevice(PDEVICE_OBJECT DeviceObject, PIRP Irp, PRE
     {
         UNICODE_STRING deviceName;
         RtlInitUnicodeString(&deviceName, L"\\Device\\LeylineAudio");
-        status = IoCreateDevice(DeviceObject->DriverObject, sizeof(PVOID), &deviceName, FILE_DEVICE_UNKNOWN, 0, FALSE, &g_ControlDeviceObject);
+        
+        status = IoCreateDeviceSecure(DeviceObject->DriverObject, sizeof(PVOID), &deviceName, FILE_DEVICE_UNKNOWN, 0, FALSE, &SDDL_DEVOBJ_SYS_ALL_ADM_RWX_WORLD_RW_RES_R, nullptr, &g_ControlDeviceObject);
+
         if (NT_SUCCESS(status))
         {
             UNICODE_STRING linkName;

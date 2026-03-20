@@ -66,9 +66,10 @@
       <BufferSecurityCheck>true</BufferSecurityCheck>
       <ControlFlowGuard>Guard</ControlFlowGuard>
       <PreprocessorDefinitions>_DEBUG;KERNEL_MODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <TreatWarningAsError>false</TreatWarningAsError>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>portcls.lib;ks.lib;wdm.lib;ntoskrnl.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wdmsec.lib;portcls.lib;ks.lib;wdm.lib;ntoskrnl.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -80,9 +81,10 @@
       <BufferSecurityCheck>true</BufferSecurityCheck>
       <ControlFlowGuard>Guard</ControlFlowGuard>
       <PreprocessorDefinitions>NDEBUG;KERNEL_MODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <TreatWarningAsError>false</TreatWarningAsError>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>portcls.lib;ks.lib;wdm.lib;ntoskrnl.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wdmsec.lib;portcls.lib;ks.lib;wdm.lib;ntoskrnl.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

@@ -563,7 +563,7 @@ STDMETHODIMP CMiniportWaveRT::GetDescription(PPCFILTER_DESCRIPTOR* Description)
 }
 
 STDMETHODIMP CMiniportWaveRT::DataRangeIntersection(
-    ULONG PinId, PKSDATARANGE DataRange, PKSDATARANGE /*MatchingDataRange*/,
+    ULONG PinId, PKSDATARANGE DataRange, PKSDATARANGE MatchingDataRange,
     ULONG DataFormatSize, PVOID DataFormat, PULONG ResultantFormatSize)
 {
     UNREFERENCED_PARAMETER(PinId);
@@ -596,7 +596,7 @@ STDMETHODIMP CMiniportWaveRT::DataRangeIntersection(
             sampleRate = audioRange->MaximumSampleFrequency;
         if (audioRange->MaximumBitsPerSample == audioRange->MinimumBitsPerSample)
             bitsPerSample = audioRange->MaximumBitsPerSample;
-        if (audioRange->MaximumChannels == audioRange->MinimumChannels)
+        if (audioRange->MaximumChannels > 0)
             channels = audioRange->MaximumChannels;
     }
 

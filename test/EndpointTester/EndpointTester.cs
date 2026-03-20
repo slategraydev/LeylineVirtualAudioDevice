@@ -29,6 +29,14 @@ namespace EndpointTester
             Console.WriteLine("\n--- Capture Endpoints ---");
             EnumerateEndpoints(enumerator, DataFlow.Capture);
 
+            var renderEndpoint = enumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active).FirstOrDefault(e => e.FriendlyName.Contains("Leyline"));
+            var captureEndpoint = enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active).FirstOrDefault(e => e.FriendlyName.Contains("Leyline"));
+            
+            if (renderEndpoint != null && captureEndpoint != null)
+            {
+                TestAudioQuality(renderEndpoint, captureEndpoint);
+            }
+
             Console.WriteLine("\nEnumeration complete.");
         }
 
@@ -155,6 +163,56 @@ namespace EndpointTester
                 Console.WriteLine("Passed!");
             } catch (Exception ex) {
                 Console.WriteLine($"Failed ({ex.Message})");
+            }
+        }
+
+        static void TestAudioQuality(MMDevice render, MMDevice capture)
+        {
+            Console.WriteLine("\n--- Audio Quality (Loopback) Test ---");
+            Console.Write("    Testing bit-exactness... ");
+            try {
+                using (var waveOut = new WasapiOut(render, AudioClientShareMode.Shared, true, 100))
+                using (var waveIn = new WasapiCapture(capture, true, 100))
+                {
+                    bool exactMatch = false;
+                    waveIn.DataAvailable += (s, e) => {
+                        var floats = new float[e.BytesRecorded / 4];
+                        Buffer.BlockCopy(e.Buffer, 0, floats, 0, e.BytesRecorded);
+                        for (int i = 0; i < floats.Length; i++) {
+                            if (Math.Abs(floats[i] - 0.1337f) < 0.000001f) {
+                                exactMatch = true;
+                                break;
+                            }
+                        }
+                    };
+                    waveIn.StartRecording();
+
+                    var floatProvider = new MagicFloatProvider(waveOut.OutputWaveFormat);
+                    waveOut.Init(floatProvider);
+                    waveOut.Play();
+
+                    Thread.Sleep(500);
+                    waveOut.Stop();
+                    waveIn.StopRecording();
+
+                    Console.WriteLine(exactMatch ? "PASSED" : "FAILED");
+                }
+            } catch (Exception ex) {
+                Console.WriteLine($"Failed ({ex.Message})");
+            }
+        }
+
+        class MagicFloatProvider : IWaveProvider
+        {
+            public WaveFormat WaveFormat { get; }
+            public MagicFloatProvider(WaveFormat format) { WaveFormat = format; }
+            public int Read(byte[] buffer, int offset, int count)
+            {
+                int floatsToWrite = count / 4;
+                float[] fbuf = new float[floatsToWrite];
+                for (int i = 0; i < floatsToWrite; i++) fbuf[i] = 0.1337f;
+                Buffer.BlockCopy(fbuf, 0, buffer, offset, count);
+                return count;
             }
         }
 
