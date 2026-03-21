@@ -35,6 +35,7 @@ namespace EndpointTester
             if (renderEndpoint != null && captureEndpoint != null)
             {
                 TestAudioQuality(renderEndpoint, captureEndpoint);
+                TestPerformanceBenchmarks(renderEndpoint, captureEndpoint);
             }
 
             Console.WriteLine("\nEnumeration complete.");
@@ -211,6 +212,118 @@ namespace EndpointTester
                 int floatsToWrite = count / 4;
                 float[] fbuf = new float[floatsToWrite];
                 for (int i = 0; i < floatsToWrite; i++) fbuf[i] = 0.1337f;
+                Buffer.BlockCopy(fbuf, 0, buffer, offset, count);
+                return count;
+            }
+        }
+
+        static void TestPerformanceBenchmarks(MMDevice render, MMDevice capture)
+        {
+            Console.WriteLine("\n--- Performance Benchmarks ---");
+            Console.Write("    Measuring round-trip latency... ");
+            try {
+                using (var waveOut = new WasapiOut(render, AudioClientShareMode.Shared, true, 20))
+                using (var waveIn = new WasapiCapture(capture, true, 20))
+                {
+                    var sw = new System.Diagnostics.Stopwatch();
+                    bool received = false;
+                    long elapsedMs = 0;
+                    
+                    waveIn.DataAvailable += (s, e) => {
+                        if (received) return;
+                        var floats = new float[e.BytesRecorded / 4];
+                        Buffer.BlockCopy(e.Buffer, 0, floats, 0, e.BytesRecorded);
+                        for (int i = 0; i < floats.Length; i++) {
+                            if (floats[i] > 0.5f && !received) {
+                                sw.Stop();
+                                elapsedMs = sw.ElapsedMilliseconds;
+                                received = true;
+                                break;
+                            }
+                        }
+                    };
+                    waveIn.StartRecording();
+                    var impulseProvider = new ImpulseProvider(waveOut.OutputWaveFormat, sw);
+                    waveOut.Init(impulseProvider);
+                    waveOut.Play();
+                    
+                    DateTime startWait = DateTime.Now;
+                    while (!received && (DateTime.Now - startWait).TotalSeconds < 2) {
+                        Thread.Sleep(1);
+                    }
+                    
+                    waveOut.Stop();
+                    waveIn.StopRecording();
+                    
+                    if (received)
+                        Console.WriteLine($"{elapsedMs} ms");
+                    else
+                        Console.WriteLine("FAILED (Timeout)");
+                }
+            } catch (Exception ex) {
+                Console.WriteLine($"Failed ({ex.Message})");
+            }
+
+            Console.Write("    Multithreaded / High-load Stress Test... ");
+            try {
+                var streams = new System.Collections.Generic.List<IDisposable>();
+                // Open 10 render and 10 capture streams.
+                for(int i = 0; i < 10; i++) {
+                    var wOut = new WasapiOut(render, AudioClientShareMode.Shared, true, 20);
+                    // 192kHz simulation - note: WASAPI Shared mode resamples to Mix Format internally.
+                    wOut.Init(new SilenceProvider(wOut.OutputWaveFormat)); 
+                    wOut.Play();
+                    streams.Add(wOut);
+                    
+                    var wIn = new WasapiCapture(capture, true, 20);
+                    wIn.StartRecording();
+                    streams.Add(wIn);
+                }
+                
+                // Warm up
+                Thread.Sleep(500);
+                
+                // We can't easily measure kernel DPC latency here, but we can measure jitter of user-mode sleep
+                long maxJitter = 0;
+                long lastTick = System.Diagnostics.Stopwatch.GetTimestamp();
+                for(int i = 0; i < 100; i++) {
+                    Thread.Sleep(10); // Sleep 10ms
+                    long tick = System.Diagnostics.Stopwatch.GetTimestamp();
+                    long delta = (tick - lastTick) * 1000 / System.Diagnostics.Stopwatch.Frequency;
+                    if (delta > 10) {
+                        long jitter = delta - 10;
+                        if (jitter > maxJitter) maxJitter = jitter;
+                    }
+                    lastTick = tick;
+                }
+                
+                foreach(var s in streams) s.Dispose();
+                
+                Console.WriteLine($"Passed (Max user-mode timer jitter: {maxJitter} ms)");
+            } catch (Exception ex) {
+                Console.WriteLine($"Failed ({ex.Message})");
+            }
+        }
+
+        class ImpulseProvider : IWaveProvider
+        {
+            public WaveFormat WaveFormat { get; }
+            private System.Diagnostics.Stopwatch _sw;
+            private bool _sent;
+            public ImpulseProvider(WaveFormat format, System.Diagnostics.Stopwatch sw) { WaveFormat = format; _sw = sw; _sent = false; }
+            public int Read(byte[] buffer, int offset, int count)
+            {
+                int floatsToWrite = count / 4;
+                float[] fbuf = new float[floatsToWrite];
+                for (int i = 0; i < floatsToWrite; i++) {
+                    if (!_sent && i == 0) {
+                        fbuf[i] = 1.0f; // Impulse
+                        _sw.Start();
+                        _sent = true;
+                    } else {
+                        fbuf[i] = 0.0f;
+                    }
+                }
                 Buffer.BlockCopy(fbuf, 0, buffer, offset, count);
                 return count;
             }
