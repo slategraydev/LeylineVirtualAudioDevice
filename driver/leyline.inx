@@ -72,7 +72,7 @@ AddInterface=%KSCATEGORY_TOPOLOGY%, %KSNAME_TopologyCapture%, Leyline.I.Topology
 [Leyline.I.WaveRender.AddReg]
 HKR,,CLSID,,%Proxy.CLSID%
 HKR,,FriendlyName,,%DeviceNameRender%
-HKR,,%PKEY_AudioEngine_OEMFormat%,0x00000001, 28,00,00,00, FE,FF,02,00, 80,BB,00,00, 00,EE,02,00, 04,00, 10,00, 16,00, 10,00, 03,00,00,00, 01,00,00,00, 00,00,10,00, 80,00,00,AA,00,38,9B,71
+HKR,,%PKEY_AudioEngine_OEMFormat%,0x00000001, 28,00,00,00, FE,FF,02,00, 80,BB,00,00, 00,DC,05,00, 08,00, 20,00, 16,00, 20,00, 03,00,00,00, 03,00,00,00, 00,00,10,00, 80,00,00,AA,00,38,9B,71
 
 [Leyline.I.TopologyRender.AddReg]
 HKR,,CLSID,,%Proxy.CLSID%
@@ -83,7 +83,7 @@ HKR,,%PKEY_AudioDevice_EnableEndpointByDefault%,0x00010001,0x00000001
 [Leyline.I.WaveCapture.AddReg]
 HKR,,CLSID,,%Proxy.CLSID%
 HKR,,FriendlyName,,%DeviceNameCapture%
-HKR,,%PKEY_AudioEngine_OEMFormat%,0x00000001, 28,00,00,00, FE,FF,02,00, 80,BB,00,00, 00,EE,02,00, 04,00, 10,00, 16,00, 10,00, 03,00,00,00, 01,00,00,00, 00,00,10,00, 80,00,00,AA,00,38,9B,71
+HKR,,%PKEY_AudioEngine_OEMFormat%,0x00000001, 28,00,00,00, FE,FF,02,00, 80,BB,00,00, 00,DC,05,00, 08,00, 20,00, 16,00, 20,00, 03,00,00,00, 03,00,00,00, 00,00,10,00, 80,00,00,AA,00,38,9B,71
 
 [Leyline.I.TopologyCapture.AddReg]
 HKR,,CLSID,,%Proxy.CLSID%

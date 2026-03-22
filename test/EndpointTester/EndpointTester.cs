@@ -56,6 +56,11 @@ namespace EndpointTester
                         Console.WriteLine($"  ID: {endpoint.ID}");
                         try {
                             Console.WriteLine($"  Format: {endpoint.AudioClient?.MixFormat}");
+                        } catch {
+                            Console.WriteLine($"  Format: [Not Negotiated by Engine yet - 0x88890008]");
+                        }
+                        
+                        try {
                             TestFormatNegotiation(endpoint);
                             if (dataFlow == DataFlow.Render) 
                             {

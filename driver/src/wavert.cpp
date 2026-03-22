@@ -576,8 +576,9 @@ STDMETHODIMP CMiniportWaveRT::DataRangeIntersection(
     BOOLEAN isExt     = !!IsEqualGUID(DataRange->Specifier, KSDATAFORMAT_SPECIFIER_WAVEFORMATEXTENSIBLE);
     if (!isEx && !isExt) return STATUS_NO_MATCH;
 
+    BOOLEAN isWildcard = !!IsEqualGUID(DataRange->SubFormat, KSDATAFORMAT_SUBTYPE_WILDCARD);
     BOOLEAN isPCM   = !!IsEqualGUID(DataRange->SubFormat, KSDATAFORMAT_SUBTYPE_PCM);
-    BOOLEAN isFloat = !!IsEqualGUID(DataRange->SubFormat, KSDATAFORMAT_SUBTYPE_IEEE_FLOAT);
+    BOOLEAN isFloat = !!IsEqualGUID(DataRange->SubFormat, KSDATAFORMAT_SUBTYPE_IEEE_FLOAT) || isWildcard;
     if (!isPCM && !isFloat) return STATUS_NO_MATCH;
 
     ULONG fmtSize = isExt ? sizeof(KSDATAFORMAT_WAVEFORMATEXTENSIBLE) : sizeof(KSDATAFORMAT_WAVEFORMATEX);
@@ -586,7 +587,7 @@ STDMETHODIMP CMiniportWaveRT::DataRangeIntersection(
     if (DataFormatSize < fmtSize) return STATUS_BUFFER_TOO_SMALL;
 
     ULONG sampleRate = 48000;
-    ULONG bitsPerSample = isPCM ? 16 : 32;
+    ULONG bitsPerSample = isFloat ? 32 : 16;
     ULONG channels = 2;
 
     if (MatchingDataRange && MatchingDataRange->FormatSize >= sizeof(KSDATARANGE_AUDIO))
@@ -609,7 +610,7 @@ STDMETHODIMP CMiniportWaveRT::DataRangeIntersection(
         r->DataFormat.FormatSize  = fmtSize;
         r->DataFormat.Flags       = 0;
         r->DataFormat.MajorFormat = KSDATAFORMAT_TYPE_AUDIO;
-        r->DataFormat.SubFormat   = DataRange->SubFormat;
+        r->DataFormat.SubFormat   = isWildcard ? KSDATAFORMAT_SUBTYPE_IEEE_FLOAT : DataRange->SubFormat;
         r->DataFormat.Specifier   = KSDATAFORMAT_SPECIFIER_WAVEFORMATEXTENSIBLE;
         r->WaveFormatExt.Format.wFormatTag      = WAVE_FORMAT_EXTENSIBLE;
         r->WaveFormatExt.Format.nChannels       = (WORD)channels;
@@ -620,7 +621,7 @@ STDMETHODIMP CMiniportWaveRT::DataRangeIntersection(
         r->WaveFormatExt.Format.cbSize          = 22;
         r->WaveFormatExt.Samples.wValidBitsPerSample = r->WaveFormatExt.Format.wBitsPerSample;
         r->WaveFormatExt.dwChannelMask          = (channels == 1) ? KSAUDIO_SPEAKER_MONO : KSAUDIO_SPEAKER_STEREO; // Simplified mask
-        r->WaveFormatExt.SubFormat              = DataRange->SubFormat;
+        r->WaveFormatExt.SubFormat              = isWildcard ? KSDATAFORMAT_SUBTYPE_IEEE_FLOAT : DataRange->SubFormat;
         r->DataFormat.SampleSize                = r->WaveFormatExt.Format.nBlockAlign;
     }
     else
@@ -629,9 +630,10 @@ STDMETHODIMP CMiniportWaveRT::DataRangeIntersection(
         r->DataFormat.FormatSize  = fmtSize;
         r->DataFormat.Flags       = 0;
         r->DataFormat.MajorFormat = KSDATAFORMAT_TYPE_AUDIO;
-        r->DataFormat.SubFormat   = DataRange->SubFormat;
+        r->DataFormat.SubFormat   = isWildcard ? KSDATAFORMAT_SUBTYPE_IEEE_FLOAT : DataRange->SubFormat;
         r->DataFormat.Specifier   = KSDATAFORMAT_SPECIFIER_WAVEFORMATEX;
-        r->WaveFormatEx.wFormatTag      = isPCM ? WAVE_FORMAT_PCM : WAVE_FORMAT_IEEE_FLOAT;
+        r->WaveFormatEx.wFormatTag      = isFloat ? WAVE_FORMAT_IEEE_FLOAT : WAVE_FORMAT_PCM;
+
         r->WaveFormatEx.nChannels       = (WORD)channels;
         r->WaveFormatEx.nSamplesPerSec  = sampleRate;
         r->WaveFormatEx.wBitsPerSample  = (WORD)bitsPerSample;

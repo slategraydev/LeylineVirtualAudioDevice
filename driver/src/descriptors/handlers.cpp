@@ -282,22 +282,22 @@ NTSTATUS ProposedFormatHandler(PPCPROPERTY_REQUEST PropertyRequest)
         {
             r->DataFormat.FormatSize  = fmtSize;
             r->DataFormat.Flags       = 0;
-            r->DataFormat.SampleSize  = 4;
+            r->DataFormat.SampleSize  = 8;
             r->DataFormat.Reserved    = 0;
             r->DataFormat.MajorFormat = KSDATAFORMAT_TYPE_AUDIO;
-            r->DataFormat.SubFormat   = KSDATAFORMAT_SUBTYPE_PCM;
+            r->DataFormat.SubFormat   = KSDATAFORMAT_SUBTYPE_IEEE_FLOAT;
             r->DataFormat.Specifier   = KSDATAFORMAT_SPECIFIER_WAVEFORMATEXTENSIBLE;
 
             r->WaveFormatExt.Format.wFormatTag      = WAVE_FORMAT_EXTENSIBLE;
             r->WaveFormatExt.Format.nChannels        = 2;
             r->WaveFormatExt.Format.nSamplesPerSec   = 48000;
-            r->WaveFormatExt.Format.wBitsPerSample   = 16;
-            r->WaveFormatExt.Format.nBlockAlign      = 4;
-            r->WaveFormatExt.Format.nAvgBytesPerSec  = 48000 * 4;
+            r->WaveFormatExt.Format.wBitsPerSample   = 32;
+            r->WaveFormatExt.Format.nBlockAlign      = 8;
+            r->WaveFormatExt.Format.nAvgBytesPerSec  = 48000 * 8;
             r->WaveFormatExt.Format.cbSize            = 22;
-            r->WaveFormatExt.Samples.wValidBitsPerSample = 16;
+            r->WaveFormatExt.Samples.wValidBitsPerSample = 32;
             r->WaveFormatExt.dwChannelMask            = KSAUDIO_SPEAKER_STEREO;
-            r->WaveFormatExt.SubFormat               = KSDATAFORMAT_SUBTYPE_PCM;
+            r->WaveFormatExt.SubFormat               = KSDATAFORMAT_SUBTYPE_IEEE_FLOAT;
         }
         PropertyRequest->ValueSize = fmtSize;
         return STATUS_SUCCESS;

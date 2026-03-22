@@ -29,6 +29,9 @@
 #define IOCTL_LEYLINE_MAP_PARAMS \
     CTL_CODE(FILE_DEVICE_LEYLINE, LEYLINE_IOCTL_BASE + 3, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
+#define IOCTL_LEYLINE_CREATE_CABLE \
+    CTL_CODE(FILE_DEVICE_LEYLINE, LEYLINE_IOCTL_BASE + 4, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // SHARED PARAMETER BLOCK
 // Layout must be identical between kernel, APO, and HSA.

@@ -80,12 +80,16 @@ if (-not $Uninstall) {
     Push-Location "$ProjectRoot\driver"
 
     if ($env:MSBUILD_EXE) {
-        & $env:MSBUILD_EXE leyline.vcxproj /p:Configuration=Release /p:Platform=x64 /t:ClCompile,Link,StampInf
+        & $env:MSBUILD_EXE leyline.vcxproj /p:Configuration=Release /p:Platform=x64 /t:Build
     }
     else {
         throw "MSBuild not found in environment."
     }
-    if ($LASTEXITCODE -ne 0) { Pop-Location; throw "Kernel build failed." }
+    # DrvCat may fail due to missing Microsoft.Kits.Logger after eWDK relocation,
+    # but the .sys is produced before that step. Check for the actual output file.
+    if (-not (Test-Path "$ProjectRoot\driver\bin\Release\leyline.sys")) {
+        Pop-Location; throw "Kernel build failed - leyline.sys not found."
+    }
     Pop-Location
 
     # Stage package artifacts.
@@ -120,7 +124,8 @@ if (-not $Uninstall) {
 
     # Ensure cert + devcon land in the package.
     Copy-Item $cerPath "$ProjectRoot\package\leyline.cer" -Force
-    $devconHostPath = "D:\eWDK_28000\Program Files\Windows Kits\10\Tools\10.0.28000.0\x64\devcon.exe"
+    $ewdkForDevcon = if ($env:eWDK_ROOT_DIR) { $env:eWDK_ROOT_DIR } elseif (Test-Path "C:\EWDK") { "C:\EWDK" } elseif (Test-Path "D:\eWDK_28000") { "D:\eWDK_28000" } else { "C:\eWDK_28000" }
+    $devconHostPath = "$ewdkForDevcon\Program Files\Windows Kits\10\Tools\$sdkVersion\x64\devcon.exe"
     if (Test-Path $devconHostPath) {
         Copy-Item $devconHostPath "$ProjectRoot\package\devcon.exe" -Force
     }
@@ -169,14 +174,15 @@ try {
             $devcon = Join-Path $path "devcon.exe"
         }
         if (-not (Test-Path $devcon)) {
-            $devcon = "C:\eWDK_28000\Program Files\Windows Kits\10\Tools\$sdkVersion\x64\devcon.exe"
+            $devcon = "C:\EWDK\Program Files\Windows Kits\10\Tools\$sdkVersion\x64\devcon.exe"
+            if (-not (Test-Path $devcon)) { $devcon = "C:\eWDK_28000\Program Files\Windows Kits\10\Tools\$sdkVersion\x64\devcon.exe" }
         }
 
         if ((Test-Path $devcon) -or (Get-Command "devcon.exe" -ErrorAction SilentlyContinue)) {
             Write-Host "    (VM) Updating device via devcon ($devcon)..."
-            & $devcon update "leyline.inf" "ROOT\MEDIA\LeylineAudio"
+            & $devcon update "leyline.inf" "ROOT\MEDIA\LeylineAudio" 2>&1 | Out-Null
             Write-Host "    (VM) devcon update exit code: $LASTEXITCODE"
-            & $devcon rescan
+            & $devcon rescan 2>&1 | Out-Null
         }
         else {
             Write-Host "    (VM) [WARNING] devcon.exe not found. Falling back to devgen..." -ForegroundColor Yellow
@@ -195,7 +201,7 @@ try {
         else {
             Write-Host "    (VM) No existing device found. Performing fresh install..."
             if ((Test-Path $devcon) -or (Get-Command "devcon.exe" -ErrorAction SilentlyContinue)) {
-                & $devcon install "leyline.inf" "ROOT\MEDIA\LeylineAudio"
+                & $devcon install "leyline.inf" "ROOT\MEDIA\LeylineAudio" 2>&1 | Out-Host
                 Write-Host "    (VM) devcon install exit code: $LASTEXITCODE"
             }
             else {
